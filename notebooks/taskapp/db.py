@@ -2,7 +2,7 @@
 db.py — SQLite database layer for Weekly Task Manager
 """
 import sqlite3
-from datetime import date, datetime
+from datetime import date, datetime, UTC
 from pathlib import Path
 
 DB_PATH = Path(__file__).parent / "tasks.db"
@@ -51,14 +51,15 @@ def init_db():
 
 def add_task(title: str, list_name: str = DEFAULT_LIST, priority: str = "medium") -> dict:
     list_name = _validate_list(list_name)
-    now = datetime.utcnow().isoformat()
+    now = datetime.now(UTC).isoformat()
     week = current_week_str()
     with get_conn() as conn:
         cur = conn.execute(
             "INSERT INTO tasks(title,list,priority,status,week_added,created,updated) VALUES(?,?,?,?,?,?,?)",
             (title, list_name, priority, "pending", week, now, now),
         )
-        return get_task(cur.lastrowid)
+        new_id = cur.lastrowid
+    return get_task(new_id)
 
 
 def get_task(task_id: int) -> dict | None:
@@ -90,7 +91,7 @@ def update_task(task_id: int, **fields) -> dict | None:
         updates["list"] = _validate_list(updates["list"])
     if not updates:
         return get_task(task_id)
-    updates["updated"] = datetime.utcnow().isoformat()
+    updates["updated"] = datetime.now(UTC).isoformat()
     set_clause = ", ".join(f"{k}=?" for k in updates)
     values = list(updates.values()) + [task_id]
     with get_conn() as conn:
